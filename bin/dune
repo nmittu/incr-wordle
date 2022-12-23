@@ -1,0 +1,4 @@
+(executables
+ (names main)
+ (libraries core incr_dom wordle_lib)
+ (preprocess (pps js_of_ocaml-ppx ppx_jane)))
