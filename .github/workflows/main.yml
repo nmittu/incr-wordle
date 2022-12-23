@@ -21,6 +21,7 @@ jobs:
           opam install dune js_of_ocaml ppx_jane js_of_ocaml-ppx incr_dom ojs -y
       - name: build
         run: |
+          eval $(opam config env)
           dune build bin/{index.html,main.bc.js}
           
       
