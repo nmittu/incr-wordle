@@ -1,7 +1,5 @@
 open Core
 
-module SS = Set.Make(String);;
-
 module GameEngine = struct
   type t = {
     start: string;
