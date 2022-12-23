@@ -14,6 +14,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install opam
+          opam init
       - name: Install opam packages
         run: |
           opam install dune js_of_ocaml ppx_jane js_of_ocaml-ppx incr_dom ojs
