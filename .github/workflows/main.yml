@@ -15,9 +15,10 @@ jobs:
           sudo apt-get update
           sudo apt-get install opam
           opam init
+          eval $(opam env --switch=default)
       - name: Install opam packages
         run: |
-          opam install dune js_of_ocaml ppx_jane js_of_ocaml-ppx incr_dom ojs
+          opam install dune js_of_ocaml ppx_jane js_of_ocaml-ppx incr_dom ojs -y
       - name: build
         run: |
           dune build bin/{index.html,main.bc.js}
