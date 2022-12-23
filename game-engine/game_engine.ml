@@ -55,10 +55,12 @@ module GameEngine = struct
   let get_prev g = match g.guesses with
   | w::_ -> w
   | [] -> g.start
+
   let validate_word g w =
     let w = String.lowercase w in
+    let diff = word_diff w (get_prev g) in
     (not (game_over g)) &&
-    (word_diff w (get_prev g) = 1 || String.(=) w g.target) && List.find ~f:(fun x -> String.(=) x w) Words.words |> Option.is_some
+    (diff = 1 || (String.(=) w g.target && diff = 0)) && List.find ~f:(fun x -> String.(=) x w) Words.words |> Option.is_some
 
   let get_locked w1 w2 = 
     let rec help w1 w2 = 
