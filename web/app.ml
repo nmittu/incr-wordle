@@ -1,36 +1,59 @@
 open Core
 open Incr_dom
 open Game_engine
+open Local_storage_manager
 
 module Model = struct
   type t = {
     game: GameEngine.t;
     locked_history: bool list list;
-    input: string
+    input: string;
+    show_hint: bool
   }
   [@@deriving sexp, fields, compare]
 
-  let init () = {
-    game=GameEngine.new_game();
-    locked_history=[];
-    input=""
-  }
+  let init mode = 
+    let show_hint = match mode with
+    | GameEngine.Normal _ -> false
+    | GameEngine.Shuffle -> true in
+    {
+      game=GameEngine.new_game mode;
+      locked_history=[];
+      input="";
+      show_hint
+    }
+
+  let get_default () =
+    Option.value 
+      ~default:(init (GameEngine.todays_game ()))
+      (LocalStorage.load_model 
+        "model"
+        ~deserializer:t_of_sexp)
 
   let enter_word t =
     if GameEngine.validate_word t.game (String.lowercase t.input) then
       let g = GameEngine.enter_word t.game (String.lowercase t.input) in
       let locked = List.map ~f:(fun o -> Option.is_some o) (GameEngine.locked_in_letters g) in
-      {
+      let t = { t with
         game = g;
         locked_history = locked::t.locked_history;
         input = "";
-      }
+      } in
+      if GameEngine.is_normal t.game then LocalStorage.save_model ~model:t ~serializer:sexp_of_t "model";
+      t
     else t
 
   let update_input t w =
     {t with input=w}
 
-  let reset_game _ = init ()
+  let reset_game m = init (GameEngine.mode m.game)
+
+  let switch_gamemode m =
+    if GameEngine.is_normal m.game then
+      init GameEngine.Shuffle
+    else get_default ()
+
+  let set_show_hint m = { m with show_hint=true }
     
   let cutoff t1 t2 = compare t1 t2 = 0
 end
@@ -41,6 +64,8 @@ module Action = struct
     | Enter_char of char
     | Backspace
     | Reset_game
+    | Switch_mode
+    | Show_hint
   [@@deriving sexp]
 end
 
@@ -59,6 +84,8 @@ let apply_action model action _ ~schedule_action:_ =
       else 
         Model.update_input model (String.slice (Model.input model) 0 (String.length (Model.input model) - 1))
   | Reset_game -> Model.reset_game model
+  | Switch_mode -> Model.switch_gamemode model
+  | Show_hint -> Model.set_show_hint model
 
 let on_startup ~schedule_action:_ _ = Async_kernel.return ()
 
@@ -99,13 +126,6 @@ let view (m: Model.t Incr.t) ~inject =
     ~on_delete:(fun () -> inject Action.Backspace)
     ~on_enter:(fun () -> inject Action.Enter_word) in
 
-  let reset_button =
-    Node.button
-      ~attr:(Attr.many_without_merge
-        [ Attr.id "reset"
-        ; Attr.on_click (fun _ -> inject Action.Reset_game)])
-      [Node.text "New Game"] in
-
   let%map start_label = 
     let%map start_txt = m >>| Model.game >>| GameEngine.start >>| String.uppercase in
     Node.div [ Node.text start_txt ]
@@ -124,21 +144,63 @@ let view (m: Model.t Incr.t) ~inject =
   
   and target_label = 
     let%map target_text = m >>| Model.game >>| GameEngine.target >>| String.uppercase
-    and locked = m >>| Model.game >>| GameEngine.locked_in_letters in
-    build_word 
-      ~locked:(List.map ~f:Option.is_some locked) 
-      ~attrs:[Attr.id "target"]
-      target_text 
+    and locked = m >>| Model.game >>| GameEngine.locked_in_letters 
+    and show_hint = m >>| Model.show_hint in
+    if show_hint then
+      build_word 
+        ~locked:(List.map ~f:Option.is_some locked) 
+        ~attrs:[Attr.id "target"]
+        target_text 
+    else Node.div []
+
+  and shuffle_icon =
+    let%map is_normal = m >>| Model.game >>| GameEngine.is_normal in
+    let image = if is_normal then "shuffle.png" else "loop.png" in
+    let style = 
+      let (@>) = Css_gen.(@>) in
+         Css_gen.width (`Em 2)
+      @> Css_gen.height (`Em 2) 
+      @> Css_gen.position ~top:(`Em 2) ~right:(`Em 2) `Absolute in
+    Node.create 
+      "img" 
+      ~attr: (Attr.many_without_merge
+        [ Attr.src image
+        ; Attr.style style
+        ; Attr.on_click (fun _ -> inject Action.Switch_mode)])
+      []
+
+  and hint_button =
+      let%map show_hint = m >>| Model.show_hint
+      and is_normal = m >>| Model.game >>| GameEngine.is_normal in
+      if (not show_hint) && is_normal then
+        Node.button
+          ~attr:(Attr.many_without_merge
+            [ Attr.id "hint-btn"
+            ; Attr.on_click (fun _ -> inject Action.Show_hint)])
+          [Node.text "Show hint"]
+      else Node.div []
+
+  and reset_button =
+      let%map is_normal = m >>| Model.game >>| GameEngine.is_normal in
+      if not is_normal then
+        Node.button
+          ~attr:(Attr.many_without_merge
+            [ Attr.id "reset"
+            ; Attr.on_click (fun _ -> inject Action.Reset_game)])
+          [Node.text "New Game"]
+      else
+        Node.div []
     
   and is_over = m >>| Model.game >>| GameEngine.game_over in
 
-  let input_target = if is_over then [target_label; reset_button] else [input; target_label] in
+  let input_target = if is_over then [target_label; reset_button] else [input; target_label; hint_button] in
 
   Node.body 
     ~attr:
       (Attr.many_without_merge
         [Attr.on_keyup (fun e -> handle_keyup e##.keyCode ~inject)])
     ([
+      shuffle_icon;
       Node.div 
         ~attr:(Attr.many_without_merge
           [Attr.id "game"])
@@ -165,6 +227,6 @@ let create model ~old_model ~inject =
     on_display ~old_model model in
   Component.create ~apply_action ~on_display model view;;
 
-let initial_model = Model.init ();;
+let initial_model = Model.get_default()
 
   

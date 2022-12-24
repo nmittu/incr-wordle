@@ -1,11 +1,22 @@
 module GameEngine: sig
   type t [@@deriving sexp, compare]
 
-  val new_game: unit -> t
+  type game_mode = 
+      Shuffle
+    | Normal of int
+  [@@deriving sexp, compare]
+
+  val todays_game: unit -> game_mode
+
+  val new_game: game_mode -> t
+
+  val is_normal: t -> bool
 
   val start: t -> string
 
   val target: t -> string
+
+  val mode: t -> game_mode
 
   val validate_word: t -> string -> bool
 

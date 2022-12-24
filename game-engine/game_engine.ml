@@ -1,7 +1,13 @@
 open Core
 
 module GameEngine = struct
+  type game_mode = 
+      Shuffle
+    | Normal of int
+  [@@deriving sexp, compare]
+
   type t = {
+    game_mode: game_mode;
     start: string;
     guesses: string list;
     target: string;
@@ -9,11 +15,29 @@ module GameEngine = struct
   }
   [@@deriving sexp, compare]
 
-  let randelt words = 
-    let n = Random.int (List.length words) in
+  let todays_game () =
+    Normal (Get_date.get_date_int ())
+
+  let get_generator = 
+    let open Number_generators in
+    function
+    | Shuffle -> (module RandomGenerator: NumberGenerator)
+    | Normal id -> 
+      let module G = DeterministicGenerator() in
+        G.init id;
+        (module G)
+
+  let getword gen words = 
+    let n = gen (List.length words) in
     match List.nth words n with
     | Some w -> w
     | None -> failwith "Impossible";;
+
+  let get_two_word gen words = 
+    let n1, n2 = gen (List.length words) in
+    match List.nth words n1, List.nth words n2 with
+    | Some w1, Some w2 -> w1, w2
+    | _ -> failwith "Impossible";;
 
   
   let explode s = List.init (String.length s) ~f:(String.get s)
@@ -27,24 +51,31 @@ module GameEngine = struct
       | _, [] | [], _ -> 0 in
     calc_diff w1 w2;;
 
-  let new_game () =
+  let new_game game_mode =
+    let module Gen = (val get_generator game_mode) in
     let rec get_start_target () = 
-      let start = randelt Words.words in
-      let target = randelt Words.words in
+      let start, target = get_two_word Gen.gen2 Words.words in
       if word_diff start target > 1 then
         start, target
       else get_start_target() in
     let start, target = get_start_target () in
     {
+      game_mode;
       start;
       guesses= [];
       target;
       locked_in= [None; None; None; None; None];
     }
 
+  let is_normal g = match g.game_mode with
+    | Normal _ -> true
+    | _ -> false
+  
   let start g = g.start
 
   let target g = g.target
+
+  let mode g = g.game_mode
 
   let game_over g = match g.guesses with
   | w::_ when String.(=) w g.target -> true && (List.fold ~f:(fun a x -> a&&(Option.is_some x)) ~init:true g.locked_in)
@@ -77,7 +108,11 @@ module GameEngine = struct
           | None -> b) 
         ~init:true (List.zip_exn locked_in (explode w))) 
       Words.words in
-    let target = randelt new_possibilites in
+    let target = match g.game_mode with
+    | Shuffle -> 
+      let module Gen = (val get_generator g.game_mode) in
+      getword Gen.gen new_possibilites
+    | Normal _ -> g.target in
 
     if validate_word g w then
       if String.(=) w g.target then
@@ -87,7 +122,7 @@ module GameEngine = struct
           locked_in;
         }
       else
-        {
+        { g with
           start=g.start;
           guesses=w::g.guesses;
           target=target;
