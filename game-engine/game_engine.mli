@@ -10,6 +10,8 @@ module GameEngine: sig
 
   val new_game: game_mode -> t
 
+  val is_todays_game: t -> bool
+
   val is_normal: t -> bool
 
   val start: t -> string

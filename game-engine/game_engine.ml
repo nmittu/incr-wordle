@@ -18,6 +18,11 @@ module GameEngine = struct
   let todays_game () =
     Normal (Get_date.get_date_int ())
 
+  let is_todays_game g =
+    match g.game_mode with
+    | Normal id -> id = (Get_date.get_date_int ())
+    | _ -> false
+
   let get_generator = 
     let open Number_generators in
     function

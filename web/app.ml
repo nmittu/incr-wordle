@@ -24,11 +24,13 @@ module Model = struct
     }
 
   let get_default () =
-    Option.value 
-      ~default:(init (GameEngine.todays_game ()))
+    let todays_game = (init (GameEngine.todays_game ())) in
+    let loaded = Option.value 
+      ~default:todays_game
       (LocalStorage.load_model 
         "model"
-        ~deserializer:t_of_sexp)
+        ~deserializer:t_of_sexp) in
+    if GameEngine.is_todays_game loaded.game then loaded else todays_game
 
   let enter_word t =
     if GameEngine.validate_word t.game (String.lowercase t.input) then
