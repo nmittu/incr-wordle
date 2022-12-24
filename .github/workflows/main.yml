@@ -41,7 +41,7 @@ jobs:
       - name: build
         run: |
           eval $(opam config env)
-          dune build bin/{index.html,main.bc.js,shuffle.png,loop.png}
+          dune build bin/{index.html,main.bc.js,shuffle.png,loop.png} --profile="release"
       - name: Setup Pages
         uses: actions/configure-pages@v2
       - name: Upload page
