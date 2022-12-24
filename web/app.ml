@@ -162,7 +162,7 @@ let view (m: Model.t Incr.t) ~inject =
       let (@>) = Css_gen.(@>) in
          Css_gen.width (`Em 2)
       @> Css_gen.height (`Em 2) 
-      @> Css_gen.position ~top:(`Em 2) ~right:(`Em 2) `Absolute in
+      @> Css_gen.position ~top:(`Em 2) ~right:(`Em 2) `Fixed in
     Node.create 
       "img" 
       ~attr: (Attr.many_without_merge
