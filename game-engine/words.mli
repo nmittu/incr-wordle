@@ -1,1 +1,1 @@
-val words: string list
+val words: string array

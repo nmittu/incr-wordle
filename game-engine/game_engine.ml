@@ -33,16 +33,12 @@ module GameEngine = struct
         (module G)
 
   let getword gen words = 
-    let n = gen (List.length words) in
-    match List.nth words n with
-    | Some w -> w
-    | None -> failwith "Impossible";;
+    let n = gen (Array.length words) in
+    words.(n)
 
   let get_two_word gen words = 
-    let n1, n2 = gen (List.length words) in
-    match List.nth words n1, List.nth words n2 with
-    | Some w1, Some w2 -> w1, w2
-    | _ -> failwith "Impossible";;
+    let n1, n2 = gen (Array.length words) in
+    words.(n1), words.(n2)
 
   
   let explode s = List.init (String.length s) ~f:(String.get s)
@@ -94,7 +90,7 @@ module GameEngine = struct
     let w = String.lowercase w in
     let diff = word_diff w (get_prev g) in
     (not (game_over g)) &&
-    (diff = 1 || (String.(=) w g.target && diff = 0)) && List.find ~f:(fun x -> String.(=) x w) Words.words |> Option.is_some
+    (diff = 1 || (String.(=) w g.target && diff = 0)) && Array.find ~f:(fun x -> String.(=) x w) Words.words |> Option.is_some
 
   let get_locked w1 w2 = 
     let rec help w1 w2 = 
@@ -106,7 +102,7 @@ module GameEngine = struct
 
   let enter_word g w = 
     let locked_in = get_locked g.target w in
-    let new_possibilites = List.filter 
+    let new_possibilites = Array.filter 
       ~f:(fun w -> List.fold 
         ~f:(fun b (l, c) -> match l with
           | Some c1 -> b && Char.(=) c1 c
