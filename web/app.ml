@@ -187,7 +187,7 @@ let view (m: Model.t Incr.t) ~inject =
     let%map input_text = m >>| Model.input in
     Node.div 
       ~attr:(Attr.many_without_merge
-        [Attr.style (Css_gen.color (`Name "chocolate"))])
+        [Attr.style (Css_gen.color (`Name "#b59f3b"))])
       [Node.text (input_text^"\u{200B}")]
   
   and target_label = 
