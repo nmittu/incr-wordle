@@ -150,9 +150,9 @@ let build_word ~locked ?(attrs=[]) w =
   let spans = List.map 
     ~f:(fun (c, l) -> 
       let color = match l with
-        | Correct -> "green"
-        | In_word -> "chocolate"
-        | Incorrect -> "black" in
+        | Correct -> "#538d4e"
+        | In_word -> "#b59f3b"
+        | Incorrect -> "white" in
       Node.span 
         ~attr:
           (Attr.many_without_merge
@@ -174,7 +174,9 @@ let view (m: Model.t Incr.t) ~inject =
 
   let%map start_label = 
     let%map start_txt = m >>| Model.game >>| GameEngine.start >>| String.uppercase in
-    Node.div [ Node.text start_txt ]
+    Node.div 
+      ~attr:(Attr.many_without_merge [Attr.style (Css_gen.color (`Name "white"))])
+      [ Node.text start_txt ]
 
   and guess_list =
     let%map guesses = m >>| Model.game >>| GameEngine.guesses 
@@ -208,7 +210,8 @@ let view (m: Model.t Incr.t) ~inject =
       let (@>) = Css_gen.(@>) in
          Css_gen.width (`Em 2)
       @> Css_gen.height (`Em 2) 
-      @> Css_gen.position ~top:(`Em 2) ~right:(`Em 2) `Fixed in
+      @> Css_gen.position ~top:(`Em 2) ~right:(`Em 2) `Fixed 
+      @> Css_gen.of_string_css_exn "filter: invert(100%)" in
     Node.create 
       "img" 
       ~attr: (Attr.many_without_merge
