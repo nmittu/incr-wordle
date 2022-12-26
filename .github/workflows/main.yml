@@ -22,22 +22,10 @@ jobs:
     steps:
       - name: Check out repo
         uses: actions/checkout@v3
-      - name: Install dune
-        run: |
-          sudo apt-get update
-          sudo apt-get install opam
-          opam init
-          eval $(opam env --switch=default)
-      - name: Cache opam
-        id: cache-opam
-        uses: actions/cache@v3
+      - name: Setup dune
+        uses: nmittu/setup-dune-action@v1
         with:
-          path: ~/.opam
-          key: ${{ runner.os }}-opam
-      - name: Install opam packages
-        if: steps.cache-opam.outputs.cache-hit != 'true'
-        run: |
-          opam install dune js_of_ocaml ppx_jane js_of_ocaml-ppx incr_dom ojs -y
+          packages: js_of_ocaml ppx_jane js_of_ocaml-ppx incr_dom ojs
       - name: build
         run: |
           eval $(opam config env)
