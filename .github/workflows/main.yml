@@ -25,7 +25,7 @@ jobs:
       - name: Setup dune
         uses: nmittu/setup-dune-action@v1
         with:
-          packages: js_of_ocaml ppx_jane js_of_ocaml-ppx incr_dom ojs
+          packages: "js_of_ocaml ppx_jane js_of_ocaml-ppx incr_dom ojs"
       - name: build
         run: |
           eval $(opam config env)
