@@ -55,7 +55,7 @@ module GameEngine = struct
   let new_game game_mode =
     let module Gen = (val get_generator game_mode) in
     let rec get_start_target () = 
-      let start, target = get_two_word Gen.gen2 Words.words in
+      let start, target = get_two_word Gen.gen2 Words.possible_words in
       if word_diff start target > 1 then
         start, target
       else get_start_target() in
@@ -90,7 +90,7 @@ module GameEngine = struct
     let w = String.lowercase w in
     let diff = word_diff w (get_prev g) in
     (not (game_over g)) &&
-    (diff = 1 || (String.(=) w g.target && diff = 0)) && Array.find ~f:(fun x -> String.(=) x w) Words.words |> Option.is_some
+    (diff = 1 || (String.(=) w g.target && diff = 0)) && Array.find ~f:(fun x -> String.(=) x w) Words.all_words |> Option.is_some
 
   let get_locked w1 w2 = 
     let rec help w1 w2 = 
@@ -108,7 +108,7 @@ module GameEngine = struct
           | Some c1 -> b && Char.(=) c1 c
           | None -> b) 
         ~init:true (List.zip_exn locked_in (explode w))) 
-      Words.words in
+      Words.all_words in
     let target = match g.game_mode with
     | Shuffle -> 
       let module Gen = (val get_generator g.game_mode) in
