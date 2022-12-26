@@ -98,7 +98,10 @@ module Model = struct
       init GameEngine.Shuffle
     else get_default ()
 
-  let set_show_hint m = { m with show_hint=true }
+  let set_show_hint m = 
+    let m = { m with show_hint=true } in
+    if GameEngine.is_normal m.game then LocalStorage.save_model ~model:m ~serializer:sexp_of_t "model";
+    m
     
   let cutoff t1 t2 = compare t1 t2 = 0
 end
