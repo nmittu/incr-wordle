@@ -6,12 +6,17 @@ module GameEngine = struct
     | Normal of int
   [@@deriving sexp, compare]
 
+  type letter_hint =
+    | Incorrect of char
+    | Correct of char
+    | In_word of char
+  [@@deriving sexp, compare]
+
   type t = {
     game_mode: game_mode;
     start: string;
-    guesses: string list;
+    guesses: letter_hint list list;
     target: string;
-    locked_in: char option list;
   }
   [@@deriving sexp, compare]
 
@@ -65,7 +70,6 @@ module GameEngine = struct
       start;
       guesses= [];
       target;
-      locked_in= [None; None; None; None; None];
     }
 
   let is_normal g = match g.game_mode with
@@ -78,12 +82,39 @@ module GameEngine = struct
 
   let mode g = g.game_mode
 
-  let game_over g = match g.guesses with
-  | w::_ when String.(=) w g.target -> true && (List.fold ~f:(fun a x -> a&&(Option.is_some x)) ~init:true g.locked_in)
-  | _ -> false
+  let rec letter_hints_to_s hints =
+    match hints with
+    | Incorrect c::tl -> (Char.to_string c) ^ (letter_hints_to_s tl)
+    | Correct c::tl -> (Char.to_string c) ^ (letter_hints_to_s tl)
+    | In_word c::tl -> (Char.to_string c) ^ (letter_hints_to_s tl)
+    | [] -> ""
+
+  
+  let locked_in_letters g = 
+    match g.guesses with
+    | w::_ -> 
+      List.map2_exn
+        ~f:(fun a b ->
+          match a,b with
+          | Correct _, w -> Correct w
+          | Incorrect _, w -> Incorrect w
+          | In_word _, w -> In_word w)
+        w (explode g.target)
+    | [] -> List.map 
+      ~f:(fun c -> Incorrect c)
+      (explode g.target)
+
+  let game_over g = 
+    List.fold 
+      ~f:(fun a x -> 
+        a&&
+          (match x with
+            | Correct _ -> true
+            | _ -> false)) 
+      ~init:true (locked_in_letters g)
 
   let get_prev g = match g.guesses with
-  | w::_ -> w
+  | w::_ -> letter_hints_to_s w
   | [] -> g.start
 
   let validate_word g w =
@@ -99,6 +130,48 @@ module GameEngine = struct
       | _::t1, _::t2 -> None::help t1 t2
       | [], _ | _, [] -> []
     in help (explode w1) (explode w2)
+
+    let get_hints g w =
+      let target = g.target in
+      if is_normal g then
+        let rec replace_first l x ~with_e = match l with
+          | h::t when Char.(h = x) -> with_e::t
+          | h::t -> h::(replace_first t x ~with_e)
+          | [] -> [] in
+
+        let rec gen_correct w t = match w, t with
+          | w::wt, t::tt when Char.(w = t) -> 
+            let hr, lr = gen_correct wt tt in
+              `Correct w::hr, ' '::lr
+          | w::wt, t::tt -> 
+            let hr, lr = gen_correct wt tt in
+              `Incorrect w::hr, t::lr
+          | [], _ | _, [] -> [], [] in
+
+        let rec gen_inword w lr = match w with
+          | h::t -> if Option.is_some (List.find lr ~f:(Char.(=) h)) then
+              `In_word h::(gen_inword t (replace_first lr h ~with_e:' '))
+            else `Incorrect h::(gen_inword t lr)
+          | [] -> [] in
+
+        let rec merge c iw = match c, iw with
+          | `Correct c::ct, _::it -> Correct c::(merge ct it)
+          | _::ct, `In_word c::it -> In_word c::(merge ct it)
+          | `Incorrect c::ct, `Incorrect _::it -> Incorrect c::(merge ct it)
+          | [], _ | _, [] -> [] in
+
+        let correct, lr = gen_correct (explode w) (explode target) in
+        let in_w = gen_inword (explode w) lr in
+        merge correct in_w
+  
+      else 
+        List.map 
+          ~f:(fun (w, t) -> 
+            if Char.(w=t) then
+              Correct w
+            else
+              Incorrect w) 
+          (List.zip_exn (explode w) (explode target))
 
   let enter_word g w = 
     let locked_in = get_locked g.target w in
@@ -119,19 +192,16 @@ module GameEngine = struct
       if String.(=) w g.target then
         {
           g with
-          guesses=w::g.guesses;
-          locked_in;
+          guesses=(get_hints g w)::g.guesses;
         }
       else
         { g with
           start=g.start;
-          guesses=w::g.guesses;
+          guesses=(get_hints g w)::g.guesses;
           target=target;
-          locked_in;
 
         }
     else failwith "Invalid word"
-  let locked_in_letters g = g.locked_in
 
   let guesses g = g.guesses
 end

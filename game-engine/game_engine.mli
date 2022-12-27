@@ -2,8 +2,14 @@ module GameEngine: sig
   type t [@@deriving sexp, compare]
 
   type game_mode = 
-      Shuffle
+    | Shuffle
     | Normal of int
+  [@@deriving sexp, compare]
+
+  type letter_hint =
+    | Incorrect of char
+    | Correct of char
+    | In_word of char
   [@@deriving sexp, compare]
 
   val todays_game: unit -> game_mode
@@ -24,9 +30,9 @@ module GameEngine: sig
 
   val enter_word: t -> string -> t
 
-  val locked_in_letters: t -> char option list
+  val locked_in_letters: t -> letter_hint list
 
   val game_over: t -> bool
 
-  val guesses: t -> string list
+  val guesses: t -> letter_hint list list
 end

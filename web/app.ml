@@ -3,18 +3,9 @@ open Incr_dom
 open Game_engine
 open Local_storage_manager
 
-let explode s = List.init (String.length s) ~f:(String.get s)
-
-type locked_status =
-  Correct
-| In_word
-| Incorrect
-[@@deriving sexp, compare]
-
 module Model = struct
   type t = {
     game: GameEngine.t;
-    locked_history: locked_status list list;
     input: string;
     show_hint: bool
   }
@@ -26,7 +17,6 @@ module Model = struct
     | GameEngine.Shuffle -> true in
     {
       game=GameEngine.new_game mode;
-      locked_history=[];
       input="";
       show_hint
     }
@@ -40,48 +30,11 @@ module Model = struct
         ~deserializer:t_of_sexp) in
     if GameEngine.is_todays_game loaded.game then loaded else todays_game
 
-
-  (* TODO: Refactor this code / move to game engine *)
-  let locked_list g ll =
-    let rec replace_first l x ~with_e = match l with
-      | h::t when Char.(h = x) -> with_e::t
-      | h::t -> h::(replace_first t x ~with_e)
-      | [] -> [] in
-
-    if GameEngine.is_normal g then
-      let w = List.hd_exn (GameEngine.guesses g) in
-      let target = GameEngine.target g in
-      let rec gen_correct w t = match w, t with
-        | w::wt, t::tt when Char.(w = t) -> 
-          let hr, lr = gen_correct wt tt in
-            Correct::hr, ' '::lr
-        | _::wt, t::tt -> 
-          let hr, lr = gen_correct wt tt in
-            Incorrect::hr, t::lr
-        | [], _ | _, [] -> [], [] in
-      let rec gen_inword w lr = match w with
-        | h::t -> if Option.is_some (List.find lr ~f:(Char.(=) h)) then
-            In_word::(gen_inword t (replace_first lr h ~with_e:' '))
-          else Incorrect::(gen_inword t lr)
-        | [] -> [] in
-      let rec merge c iw = match c, iw with
-        | Correct::ct, _::it -> Correct::(merge ct it)
-        | _::ct, In_word::it -> In_word::(merge ct it)
-        | _::ct, _::it -> Incorrect::(merge ct it)
-        | [], _ | _, [] -> [] in
-      let correct, lr = gen_correct (explode w) (explode target) in
-      let in_w = gen_inword (explode w) lr in
-      merge correct in_w
-
-    else List.map ~f:(fun o -> if Option.is_some o then Correct else Incorrect) ll
-
   let enter_word t =
     if GameEngine.validate_word t.game (String.lowercase t.input) then
       let g = GameEngine.enter_word t.game (String.lowercase t.input) in
-      let locked = locked_list g (GameEngine.locked_in_letters g) in
       let t = { t with
         game = g;
-        locked_history = locked::t.locked_history;
         input = "";
       } in
       if GameEngine.is_normal t.game then LocalStorage.save_model ~model:t ~serializer:sexp_of_t "model";
@@ -148,20 +101,20 @@ let handle_keyup keycode ~inject =
     inject Action.Enter_word
   else Ui_effect.return();;
 
-let build_word ~locked ?(attrs=[]) w =
+let build_word ?(attrs=[]) w =
   let open Vdom in
   let spans = List.map 
-    ~f:(fun (c, l) -> 
-      let color = match l with
-        | Correct -> "#538d4e"
-        | In_word -> "#b59f3b"
-        | Incorrect -> "white" in
+    ~f:(fun h -> 
+      let c, color = match h with
+        | GameEngine.Correct c -> c, "#538d4e"
+        | GameEngine.In_word c -> c, "#b59f3b"
+        | GameEngine.Incorrect c -> c, "white" in
       Node.span 
         ~attr:
           (Attr.many_without_merge
             ([Attr.style (Css_gen.color (`Name color))] @ attrs))
-        [Node.text (Char.to_string c)]) 
-    (List.zip_exn (w |> String.uppercase |> explode) locked) in
+        [Node.text (c |> Char.to_string  |> String.uppercase)]) 
+    w in
   Node.div spans
 
 
@@ -182,9 +135,8 @@ let view (m: Model.t Incr.t) ~inject =
       [ Node.text start_txt ]
 
   and guess_list =
-    let%map guesses = m >>| Model.game >>| GameEngine.guesses 
-    and locked = m >>| Model.locked_history in 
-    List.map ~f:(fun (w, locked) -> build_word ~locked w) (List.zip_exn guesses locked) |> List.rev
+    let%map guesses = m >>| Model.game >>| GameEngine.guesses in 
+    List.map ~f:build_word guesses |> List.rev
 
   and input =
     let%map input_text = m >>| Model.input in
@@ -194,16 +146,12 @@ let view (m: Model.t Incr.t) ~inject =
       [Node.text (input_text^"\u{200B}")]
   
   and target_label = 
-    let%map target_text = m >>| Model.game >>| GameEngine.target >>| String.uppercase
-    and locked = m >>| Model.game >>| GameEngine.locked_in_letters 
+    let%map locked = m >>| Model.game >>| GameEngine.locked_in_letters 
     and show_hint = m >>| Model.show_hint in
     if show_hint then
       build_word 
-        ~locked:(List.map 
-          ~f:(fun l -> if Option.is_some l then Correct else Incorrect) 
-          locked) 
         ~attrs:[Attr.id "target"]
-        target_text 
+        locked 
     else Node.div []
 
   and shuffle_icon =
