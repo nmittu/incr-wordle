@@ -19,7 +19,7 @@ jobs:
         with:
           packages: "js_of_ocaml ppx_jane js_of_ocaml-ppx incr_dom ojs ocamlformat.0.21.0"
           compiler: 4.12.0
-      - name: Run fmt
+      - name: Build
         run: |
           eval $(opam config env)
           dune build bin/{index.html,main.bc.js,shuffle.png,loop.png}
