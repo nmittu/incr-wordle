@@ -1,8 +1,13 @@
 name: dune build @fmt
 on:
   pull_request:
-    paths:
-      - "*"
+    types:
+      - opened
+      - reopened
+      - edited
+      - synchronize
+    branches:
+      - main
   push:
     branches:
       - main
