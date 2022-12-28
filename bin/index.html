@@ -88,6 +88,36 @@
         flex-shrink: 0.5;
         flex-basis: 1rem;
       }
+
+      .popup-cont {
+        position:fixed;
+        top: 0;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        background: rgba(0,0,0,0.8);
+      }
+
+      .popup {
+        color: white;
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: #121212;
+        padding: 2rem;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        border-radius: 20px;
+        min-width: 20%;
+      }
+
+      .popup button {
+        height: 2rem;
+        padding: 0.5rem;
+        margin: 0.5rem;
+      }
     </style>
   </head>
   <body>
