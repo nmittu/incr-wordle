@@ -1,3 +1,5 @@
-(library (name wordle_lib)
+(library
+ (name wordle_lib)
  (libraries core incr_dom game_engine)
- (preprocess (pps js_of_ocaml-ppx ppx_jane)))
+ (preprocess
+  (pps js_of_ocaml-ppx ppx_jane)))

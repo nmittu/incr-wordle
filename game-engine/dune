@@ -1,4 +1,5 @@
 (library
  (name game_engine)
  (libraries core)
- (preprocess (pps ppx_jane)))
+ (preprocess
+  (pps ppx_jane)))

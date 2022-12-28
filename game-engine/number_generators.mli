@@ -1,13 +1,14 @@
 open! Core
 
 module type NumberGenerator = sig
-  val gen:  int -> int
-  val gen2: int -> int*int
+  val gen : int -> int
+  val gen2 : int -> int * int
 end
 
-module RandomGenerator: NumberGenerator
+module RandomGenerator : NumberGenerator
 
-module DeterministicGenerator (): sig
+module DeterministicGenerator () : sig
   include NumberGenerator
-  val init: int -> unit
+
+  val init : int -> unit
 end

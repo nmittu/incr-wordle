@@ -7,4 +7,5 @@ let () =
   Start_app.start
     (module App)
     ~bind_to_element_with_id:"app"
-    ~initial_model:App.initial_model;;
+    ~initial_model:App.initial_model
+;;
