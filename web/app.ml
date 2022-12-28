@@ -2,15 +2,15 @@ open Core
 open Incr_dom
 open Game_engine
 open Local_storage_manager
-
 module SolutionMap = Game_stats.SolutionMap
+
 module Model = struct
   type t =
     { game : GameEngine.t
     ; input : string
     ; show_hint : bool
     ; solution_history : int SolutionMap.t [@default SolutionMap.empty]
-    ; game_stats_closed : bool [@default false] [@sexp_drop_if (fun _ -> true)]
+    ; game_stats_closed : bool [@default false] [@sexp_drop_if fun _ -> true]
     }
   [@@deriving sexp, fields, compare]
 
@@ -20,7 +20,12 @@ module Model = struct
       | GameEngine.Normal _ -> false
       | GameEngine.Shuffle -> true
     in
-    { game = GameEngine.new_game mode; input = ""; show_hint; solution_history = SolutionMap.empty ; game_stats_closed = false }
+    { game = GameEngine.new_game mode
+    ; input = ""
+    ; show_hint
+    ; solution_history = SolutionMap.empty
+    ; game_stats_closed = false
+    }
   ;;
 
   let get_default () =
@@ -30,20 +35,24 @@ module Model = struct
         ~default:todays_game
         (LocalStorage.load_model "model" ~deserializer:t_of_sexp)
     in
-    if GameEngine.is_todays_game loaded.game then loaded else {todays_game with solution_history=loaded.solution_history}
+    if GameEngine.is_todays_game loaded.game
+    then loaded
+    else { todays_game with solution_history = loaded.solution_history }
   ;;
 
   let enter_word t =
     if GameEngine.validate_word t.game (String.lowercase t.input)
     then (
       let g = GameEngine.enter_word t.game (String.lowercase t.input) in
-      let sm = if GameEngine.game_over g then
-        let score = List.length (GameEngine.guesses g) in
-        let opt = SolutionMap.find t.solution_history score in
-        let updated_val = (Option.value opt ~default:0) + 1 in
-        SolutionMap.set t.solution_history ~key:score ~data:updated_val
-      else
-        t.solution_history in
+      let sm =
+        if GameEngine.game_over g
+        then (
+          let score = List.length (GameEngine.guesses g) in
+          let opt = SolutionMap.find t.solution_history score in
+          let updated_val = Option.value opt ~default:0 + 1 in
+          SolutionMap.set t.solution_history ~key:score ~data:updated_val)
+        else t.solution_history
+      in
       let t = { t with game = g; input = ""; solution_history = sm } in
       if GameEngine.is_normal t.game
       then LocalStorage.save_model ~model:t ~serializer:sexp_of_t "model";
@@ -65,8 +74,7 @@ module Model = struct
     m
   ;;
 
-  let close_stats m = { m with game_stats_closed = true}
-
+  let close_stats m = { m with game_stats_closed = true }
   let cutoff t1 t2 = compare t1 t2 = 0
 end
 
@@ -208,14 +216,12 @@ let view (m : Model.t Incr.t) ~inject =
              [ Attr.id "reset"; Attr.on_click (fun _ -> inject Action.Reset_game) ])
         [ Node.text "New Game" ]
     else Node.div []
-
   and game_stats =
     let is_closed = m >>| Model.game_stats_closed
     and game = m >>| Model.game
     and solution_history = m >>| Model.solution_history in
-    Game_stats.view ~is_closed ~game ~solution_history
-      ~close_stats: (fun _ -> inject Action.Close_stats)
-
+    Game_stats.view ~is_closed ~game ~solution_history ~close_stats:(fun _ ->
+        inject Action.Close_stats)
   and is_over = m >>| Model.game >>| GameEngine.game_over in
   let input_target =
     if is_over
