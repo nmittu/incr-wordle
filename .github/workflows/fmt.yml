@@ -1,6 +1,6 @@
 name: dume build @fmt
 on:
-  pull_requests:
+  pull_request:
     paths:
       - "*"
   push:
