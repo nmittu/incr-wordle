@@ -21,6 +21,7 @@ module Rule = struct
   let get_start_end t =
     let st, tg = gen2 t (Array.length Words.possible_words) in
     Words.possible_words.(st), Words.possible_words.(tg)
+  ;;
 
   let get_hints _ ~target ~word =
     let rec replace_first l x ~with_e =
@@ -57,8 +58,8 @@ module Rule = struct
     let correct, lr = gen_correct (explode word) (explode target) in
     let in_w = gen_inword (explode word) lr in
     merge correct in_w
+  ;;
 
   let get_new_target _ ~locked_in:_ ~old_target = old_target
-  
   let get_today = Get_date.get_date_int
 end

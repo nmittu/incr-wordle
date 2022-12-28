@@ -1,11 +1,9 @@
 open Core
 open Incr_dom
 module SolutionMap = Model.SolutionMap
-
-module NormalGame = Game.Make(Game.NormalRule)
-module ShuffleGame = Game.Make(Game.ShuffleRule)
-
-module Model =  Model
+module NormalGame = Game.Make (Game.NormalRule)
+module ShuffleGame = Game.Make (Game.ShuffleRule)
+module Model = Model
 
 module Action = struct
   type t =
@@ -146,22 +144,22 @@ let view (m : Model.t Incr.t) ~inject =
         [ Node.text "New Game" ]
     else Node.div []
   and game_stats =
-    let gm = let%map m = m in
+    let gm =
+      let%map m = m in
       match m.game with
       | Normal gm -> Some gm
       | Shuffle _ -> None
     in
-    let args = let%map gm = gm in
-      Option.map 
-        gm
-        ~f: (fun gm -> (gm.game_stats_closed, gm.game,gm.solution_history)) in
-    args >>| (fun args ->
-      Option.map 
-        args
-        ~f: (fun (is_closed, game, solution_history) ->
-          Game_stats.view ~is_closed ~game ~solution_history ~close_stats:(fun _ ->
-            inject Action.Close_stats)) |> Option.value ~default:(Node.div []))
-    
+    let args =
+      let%map gm = gm in
+      Option.map gm ~f:(fun gm -> gm.game_stats_closed, gm.game, gm.solution_history)
+    in
+    args
+    >>| fun args ->
+    Option.map args ~f:(fun (is_closed, game, solution_history) ->
+        Game_stats.view ~is_closed ~game ~solution_history ~close_stats:(fun _ ->
+            inject Action.Close_stats))
+    |> Option.value ~default:(Node.div [])
   and is_over = m >>| Model.game_over in
   let input_target =
     if is_over
