@@ -1,8 +1,12 @@
 name: dune build
 on:
   pull_request:
-    paths:
-      - "*"
+    types:
+      - opened
+      - reopened
+      - edited
+    branches:
+      - main
   push:
     branches:
       - main
