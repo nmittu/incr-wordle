@@ -1,0 +1,25 @@
+name: dume build @fmt
+on:
+  pull_requests:
+    paths:
+      - "*"
+  push:
+    branches:
+      - main
+
+jobs:
+  format:
+    name: dune build @fmt
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v3
+      - name: Setup dune
+        uses: nmittu/setup-dune@v2
+        with:
+          packages: "js_of_ocaml ppx_jane js_of_ocaml-ppx incr_dom ojs ocamlformat"
+          compiler: 4.12.0
+      - name: Run fmt
+        run: |
+          eval $(opam config env)
+          dune build @fmt
