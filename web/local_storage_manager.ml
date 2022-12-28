@@ -6,12 +6,9 @@ module LocalStorage = struct
   let load_model key ~deserializer =
     let%bind storage = Js.Optdef.to_option Dom_html.window##.localStorage in
     let%bind sexp_js = Js.Opt.to_option (storage##getItem (Js.string key)) in
-    try
-      let sexp_s = Js.to_string sexp_js in
-      let sexp = Sexp.of_string sexp_s in
-      Some (deserializer sexp)
-    with
-    | _ -> None
+    let sexp_s = Js.to_string sexp_js in
+    let sexp = Sexp.of_string sexp_s in
+    deserializer sexp
   ;;
 
   let save_model key ~model ~serializer =

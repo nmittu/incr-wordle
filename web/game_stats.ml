@@ -1,19 +1,13 @@
 open Core
 open Incr_dom
-open Game_engine
-module SolutionMap = Map.Make (Int)
 
 let view ~is_closed ~game ~solution_history ~close_stats =
-  let open Incr.Let_syntax in
   let open Vdom in
-  let%map is_closed = is_closed
-  and game_over = game >>| GameEngine.game_over
-  and score = game >>| GameEngine.guesses >>| List.length
+  let game_over = game |> Model.NormalGame.game_over
+  and score = game |> Model.NormalGame.guesses |> List.length
   and mean =
-    solution_history
-    >>| fun solution_history ->
     let games, score =
-      SolutionMap.fold
+      Model.SolutionMap.fold
         solution_history
         ~init:(0, 0)
         ~f:(fun ~key ~data (num_games, tot_score) ->
