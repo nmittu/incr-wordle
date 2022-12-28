@@ -37,33 +37,38 @@ end
 let enter_guesses g glist =
   List.fold
     ~f:(fun g w -> Model_intf.NormalGame.enter_word g w)
-    ~init: g
+    ~init:g
     (List.rev_map
-      ~f:(fun g ->
-        String.concat (List.map
-          ~f:(fun g -> 
-            let open GameEngine' in
-            match g with
-            | Correct c -> Char.to_string c
-            | Incorrect c -> Char.to_string c
-            | In_word c -> Char.to_string c)
-            g))
-      glist);; 
+       ~f:(fun g ->
+         String.concat
+           (List.map
+              ~f:(fun g ->
+                let open GameEngine' in
+                match g with
+                | Correct c -> Char.to_string c
+                | Incorrect c -> Char.to_string c
+                | In_word c -> Char.to_string c)
+              g))
+       glist)
+;;
 
 let convert sexp : Model_intf.normal_mode option =
   try
     let model = Model'.t_of_sexp sexp in
     match model.game.game_mode with
     | Normal id ->
-      let g = Model_intf.NormalGame.new_game (id) in
+      let g = Model_intf.NormalGame.new_game id in
       let g = enter_guesses g (GameEngine'.guesses model.game) in
-      Some {
-          game = g;
-          show_hint = model.show_hint;
-          solution_history = model.solution_history |> SolutionMap'.to_alist |> Model_intf.SolutionMap.of_alist_exn;
-          game_stats_closed = model.game_stats_closed
+      Some
+        { game = g
+        ; show_hint = model.show_hint
+        ; solution_history =
+            model.solution_history
+            |> SolutionMap'.to_alist
+            |> Model_intf.SolutionMap.of_alist_exn
+        ; game_stats_closed = model.game_stats_closed
         }
-    | _ -> 
-      failwith "lol 2";
+    | _ -> failwith "lol 2"
   with
   | e -> raise e
+;;
