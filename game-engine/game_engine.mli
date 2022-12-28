@@ -32,6 +32,7 @@ module type GameEngine = sig
   val locked_in_letters : t -> letter_hint list
   val game_over : t -> bool
   val guesses : t -> letter_hint list list
+  val rule_data : t -> rule_t
 end
 
 

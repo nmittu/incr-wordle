@@ -1,82 +1,11 @@
 open Core
 open Incr_dom
-open Game_engine
-open Local_storage_manager
-module SolutionMap = Game_stats.SolutionMap
+module SolutionMap = Model.SolutionMap
 
-module Model = struct
-  type t =
-    { game : GameEngine.t
-    ; input : string
-    ; show_hint : bool
-    ; solution_history : int SolutionMap.t [@default SolutionMap.empty]
-    ; game_stats_closed : bool [@default false] [@sexp_drop_if fun _ -> true]
-    }
-  [@@deriving sexp, fields, compare]
+module NormalGame = Game.Make(Game.NormalRule)
+module ShuffleGame = Game.Make(Game.ShuffleRule)
 
-  let init mode =
-    let show_hint =
-      match mode with
-      | GameEngine.Normal _ -> false
-      | GameEngine.Shuffle -> true
-    in
-    { game = GameEngine.new_game mode
-    ; input = ""
-    ; show_hint
-    ; solution_history = SolutionMap.empty
-    ; game_stats_closed = false
-    }
-  ;;
-
-  let get_default () =
-    let todays_game = init (GameEngine.todays_game ()) in
-    let loaded =
-      Option.value
-        ~default:todays_game
-        (LocalStorage.load_model "model" ~deserializer:t_of_sexp)
-    in
-    if GameEngine.is_todays_game loaded.game
-    then loaded
-    else { todays_game with solution_history = loaded.solution_history }
-  ;;
-
-  let enter_word t =
-    if GameEngine.validate_word t.game (String.lowercase t.input)
-    then (
-      let g = GameEngine.enter_word t.game (String.lowercase t.input) in
-      let sm =
-        if GameEngine.game_over g
-        then (
-          let score = List.length (GameEngine.guesses g) in
-          let opt = SolutionMap.find t.solution_history score in
-          let updated_val = Option.value opt ~default:0 + 1 in
-          SolutionMap.set t.solution_history ~key:score ~data:updated_val)
-        else t.solution_history
-      in
-      let t = { t with game = g; input = ""; solution_history = sm } in
-      if GameEngine.is_normal t.game
-      then LocalStorage.save_model ~model:t ~serializer:sexp_of_t "model";
-      t)
-    else t
-  ;;
-
-  let update_input t w = { t with input = w }
-  let reset_game m = init (GameEngine.mode m.game)
-
-  let switch_gamemode m =
-    if GameEngine.is_normal m.game then init GameEngine.Shuffle else get_default ()
-  ;;
-
-  let set_show_hint m =
-    let m = { m with show_hint = true } in
-    if GameEngine.is_normal m.game
-    then LocalStorage.save_model ~model:m ~serializer:sexp_of_t "model";
-    m
-  ;;
-
-  let close_stats m = { m with game_stats_closed = true }
-  let cutoff t1 t2 = compare t1 t2 = 0
-end
+module Model =  Model
 
 module Action = struct
   type t =
@@ -136,9 +65,9 @@ let build_word ?(attrs = []) w =
       ~f:(fun h ->
         let c, color =
           match h with
-          | GameEngine.Correct c -> c, "#538d4e"
-          | GameEngine.In_word c -> c, "#b59f3b"
-          | GameEngine.Incorrect c -> c, "white"
+          | Game.Correct c -> c, "#538d4e"
+          | Game.In_word c -> c, "#b59f3b"
+          | Game.Incorrect c -> c, "white"
         in
         Node.span
           ~attr:
@@ -160,12 +89,12 @@ let view (m : Model.t Incr.t) ~inject =
       ~on_enter:(fun () -> inject Action.Enter_word)
   in
   let%map start_label =
-    let%map start_txt = m >>| Model.game >>| GameEngine.start >>| String.uppercase in
+    let%map start_txt = m >>| Model.start >>| String.uppercase in
     Node.div
       ~attr:(Attr.many_without_merge [ Attr.style (Css_gen.color (`Name "white")) ])
       [ Node.text start_txt ]
   and guess_list =
-    let%map guesses = m >>| Model.game >>| GameEngine.guesses in
+    let%map guesses = m >>| Model.guesses in
     List.map ~f:build_word guesses |> List.rev
   and input =
     let%map input_text = m >>| Model.input in
@@ -173,11 +102,11 @@ let view (m : Model.t Incr.t) ~inject =
       ~attr:(Attr.many_without_merge [ Attr.style (Css_gen.color (`Name "#b59f3b")) ])
       [ Node.text (input_text ^ "\u{200B}") ]
   and target_label =
-    let%map locked = m >>| Model.game >>| GameEngine.locked_in_letters
+    let%map locked = m >>| Model.locked_in_letters
     and show_hint = m >>| Model.show_hint in
     if show_hint then build_word ~attrs:[ Attr.id "target" ] locked else Node.div []
   and shuffle_icon =
-    let%map is_normal = m >>| Model.game >>| GameEngine.is_normal in
+    let%map is_normal = m >>| Model.is_normal in
     let image = if is_normal then "shuffle.png" else "loop.png" in
     let style =
       let ( @> ) = Css_gen.( @> ) in
@@ -197,7 +126,7 @@ let view (m : Model.t Incr.t) ~inject =
       []
   and hint_button =
     let%map show_hint = m >>| Model.show_hint
-    and is_normal = m >>| Model.game >>| GameEngine.is_normal in
+    and is_normal = m >>| Model.is_normal in
     if (not show_hint) && is_normal
     then
       Node.button
@@ -207,7 +136,7 @@ let view (m : Model.t Incr.t) ~inject =
         [ Node.text "Show hint" ]
     else Node.div []
   and reset_button =
-    let%map is_normal = m >>| Model.game >>| GameEngine.is_normal in
+    let%map is_normal = m >>| Model.is_normal in
     if not is_normal
     then
       Node.button
@@ -217,12 +146,23 @@ let view (m : Model.t Incr.t) ~inject =
         [ Node.text "New Game" ]
     else Node.div []
   and game_stats =
-    let is_closed = m >>| Model.game_stats_closed
-    and game = m >>| Model.game
-    and solution_history = m >>| Model.solution_history in
-    Game_stats.view ~is_closed ~game ~solution_history ~close_stats:(fun _ ->
-        inject Action.Close_stats)
-  and is_over = m >>| Model.game >>| GameEngine.game_over in
+    let gm = let%map m = m in
+      match m.game with
+      | Normal gm -> Some gm
+      | Shuffle _ -> None
+    in
+    let args = let%map gm = gm in
+      Option.map 
+        gm
+        ~f: (fun gm -> (gm.game_stats_closed, gm.game,gm.solution_history)) in
+    args >>| (fun args ->
+      Option.map 
+        args
+        ~f: (fun (is_closed, game, solution_history) ->
+          Game_stats.view ~is_closed ~game ~solution_history ~close_stats:(fun _ ->
+            inject Action.Close_stats)) |> Option.value ~default:(Node.div []))
+    
+  and is_over = m >>| Model.game_over in
   let input_target =
     if is_over
     then [ target_label; reset_button ]
