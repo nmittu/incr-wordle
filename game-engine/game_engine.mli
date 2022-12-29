@@ -1,27 +1,38 @@
-module GameEngine : sig
+
+type letter_hint =
+| Incorrect of char
+| Correct of char
+| In_word of char
+[@@deriving sexp, compare]
+
+val word_diff : string -> string -> int
+
+val explode : string -> char list
+
+module type GameRules = sig
   type t [@@deriving sexp, compare]
 
-  type game_mode =
-    | Shuffle
-    | Normal of int
-  [@@deriving sexp, compare]
+  val get_start_end: t -> string*string
 
-  type letter_hint =
-    | Incorrect of char
-    | Correct of char
-    | In_word of char
-  [@@deriving sexp, compare]
+  val get_hints: t -> target:string -> word:string -> letter_hint list
 
-  val todays_game : unit -> game_mode
-  val new_game : game_mode -> t
-  val is_todays_game : t -> bool
-  val is_normal : t -> bool
+  val get_new_target: t -> locked_in: letter_hint list -> old_target: string -> string
+end
+
+module type GameEngine = sig
+  type t [@@deriving sexp, compare]
+
+  type rule_t [@@deriving sexp, compare]
+
+  val new_game : rule_t -> t
   val start : t -> string
   val target : t -> string
-  val mode : t -> game_mode
   val validate_word : t -> string -> bool
   val enter_word : t -> string -> t
   val locked_in_letters : t -> letter_hint list
   val game_over : t -> bool
   val guesses : t -> letter_hint list list
 end
+
+
+module Make (R : GameRules) : GameEngine with type rule_t = R.t
