@@ -32,14 +32,14 @@ let enter_word t =
       ~create_game_mode
     =
     let module M = (val m) in
-    let g =
+    let g, input =
       if M.validate_word g t.input
       then (
         let g = M.enter_word g (String.lowercase t.input) in
-        g)
-      else g
+        g, "")
+      else g, t.input
     in
-    { game = create_game_mode g; input = "" }
+    { game = create_game_mode g; input }
   in
   match t.game with
   | Normal gm ->
