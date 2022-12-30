@@ -137,20 +137,6 @@ module Make (R : GameRules) = struct
     else failwith "Invalid word"
   ;;
 
-  let locked_in_letters g =
-    match g.guesses with
-    | w :: _ ->
-      List.map2_exn
-        ~f:(fun a b ->
-          match a, b with
-          | Correct _, w -> Correct w
-          | Incorrect _, w -> Incorrect w
-          | In_word _, w -> In_word w)
-        w
-        (explode g.target)
-    | [] -> List.map ~f:(fun c -> Incorrect c) (explode g.target)
-  ;;
-
   let game_over g =
     List.fold
       ~f:(fun a x ->
